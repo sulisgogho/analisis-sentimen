@@ -7,11 +7,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-from imblearn.over_sampling import SMOTE
 import pickle
 import seaborn as sns
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+from imblearn.over_sampling import SMOTE
 
 # Download NLTK data
 nltk.download('punkt')
@@ -106,12 +106,17 @@ if menu == "Analisis":
         X = tfidf_df
         y = cleaned_df['Label']
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42, stratify=y)
+
+        # Apply SMOTE to balance the training data
+        smote = SMOTE(random_state=42)
+        X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
 
         # Display the number of data points in training and testing sets
         st.subheader("Number of Data Points")
         st.write(f"Training Data: {len(X_train)}")
         st.write(f"Testing Data: {len(X_test)}")
+        st.write(f"Training Data after SMOTE: {len(X_train_smote)}")
         
         # Pie chart for label distribution
         label_counts = cleaned_df['Label'].value_counts()
@@ -123,24 +128,23 @@ if menu == "Analisis":
 
         # Counts of positive and negative labels in training and testing sets
         train_label_counts = y_train.value_counts()
+        train_label_counts_smote = pd.Series(y_train_smote).value_counts()
         test_label_counts = y_test.value_counts()
 
         st.subheader("Label Distribution in Training and Testing Sets")
         st.write("Training Set")
         st.write(train_label_counts)
+        st.write("Training Set after SMOTE")
+        st.write(train_label_counts_smote)
 
         st.write("Testing Set")
         st.write(test_label_counts)
 
         if st.button("Train Model"):
-            # Apply SMOTE to balance the training data
-            smote = SMOTE(random_state=42)
-            X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
-
             # Train KNeighborsClassifier with k=5
             k = 5
             model = KNeighborsClassifier(n_neighbors=k)
-            model.fit(X_train_res, y_train_res)
+            model.fit(X_train_smote, y_train_smote)
 
             with open('knn_model.pkl', 'wb') as f:
                 pickle.dump(model, f)
